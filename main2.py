@@ -1,6 +1,7 @@
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QGridLayout, QLineEdit, QPushButton, \
-    QMainWindow, QTableWidget, QTableWidgetItem, QDialog, QComboBox, QToolBar, QStatusBar, QMessageBox
+from PyQt6.QtWidgets import QApplication, QLabel, QWidget, QGridLayout, \
+     QLineEdit, QPushButton, QMainWindow, QTableWidget, QTableWidgetItem, QDialog, \
+     QVBoxLayout, QComboBox, QToolBar, QStatusBar, QMessageBox
 from PyQt6.QtGui import QAction, QIcon
 import sys
 import sqlite3
@@ -31,11 +32,12 @@ class MainWindow(QMainWindow):
 
         about_action = QAction("About", self)
         help_menu_item.addAction(about_action)
+        about_action.setMenuRole(QAction.MenuRole.NoRole)
         about_action.triggered.connect(self.about)
 
         search_action = QAction(QIcon("icons/search.png"), "Search", self)
-        search_action.triggered.connect(self.search)
         edit_menu_item.addAction(search_action)
+        search_action.triggered.connect(self.search)
 
         self.table = QTableWidget()
         self.table.setColumnCount(4)
@@ -47,6 +49,7 @@ class MainWindow(QMainWindow):
         toolbar = QToolBar()
         toolbar.setMovable(True)
         self.addToolBar(toolbar)
+
         toolbar.addAction(add_student_action)
         toolbar.addAction(search_action)
 
@@ -87,8 +90,8 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def search(self):
-        search = SearchDialog()
-        search.exec()
+        dialog = SearchDialog()
+        dialog.exec()
 
     def edit(self):
         dialog = EditDialog()
@@ -113,7 +116,6 @@ class AboutDialog(QMessageBox):
         """
         self.setText(content)
 
-
 class EditDialog(QDialog):
     def __init__(self):
         super().__init__()
@@ -122,10 +124,13 @@ class EditDialog(QDialog):
         self.setFixedHeight(300)
 
         layout = QVBoxLayout()
-
         # Get student name from selected row
         index = main_window.table.currentRow()
         student_name = main_window.table.item(index, 1).text()
+
+        # Get id from selected row
+        self.student_id = main_window.table.item(index, 0).text()
+
         # Add student name widget
         self.student_name = QLineEdit(student_name)
         self.student_name.setPlaceholderText("Name")
@@ -138,9 +143,6 @@ class EditDialog(QDialog):
         self.course_name.addItems(courses)
         self.course_name.setCurrentText(course_name)
         layout.addWidget(self.course_name)
-
-        # Get id from selected row
-        self.student_id = main_window.table.item(index, 0).text()
 
         # Add mobile widget
         mobile = main_window.table.item(index, 3).text()
@@ -166,6 +168,7 @@ class EditDialog(QDialog):
         connection.commit()
         cursor.close()
         connection.close()
+
         # Refresh the table
         main_window.load_data()
 
@@ -177,8 +180,8 @@ class DeleteDialog(QDialog):
 
         layout = QGridLayout()
         confirmation = QLabel("Are you sure you want to delete?")
-        yes = QPushButton("yes")
-        no = QPushButton("no")
+        yes = QPushButton("Yes")
+        no = QPushButton("No")
 
         layout.addWidget(confirmation, 0, 0, 1, 2)
         layout.addWidget(yes, 1, 0)
@@ -186,16 +189,15 @@ class DeleteDialog(QDialog):
         self.setLayout(layout)
 
         yes.clicked.connect(self.delete_student)
-        no.clicked.connect(self.abort)
 
     def delete_student(self):
         # Get selected row index and student id
         index = main_window.table.currentRow()
         student_id = main_window.table.item(index, 0).text()
 
-        connection = DatabaseConnection().connect()
+        connection = sqlite3.connect("database.db")
         cursor = connection.cursor()
-        cursor.execute("DELETE from students WHERE id = ?", (student_id,))
+        cursor.execute("DELETE from students WHERE id = ?", (student_id, ))
         connection.commit()
         cursor.close()
         connection.close()
@@ -207,14 +209,6 @@ class DeleteDialog(QDialog):
         confirmation_widget.setWindowTitle("Success")
         confirmation_widget.setText("The record was deleted successfully!")
         confirmation_widget.exec()
-
-    def abort(self):
-        confirmation_widget = QMessageBox()
-        confirmation_widget.setWindowTitle("Abort")
-        confirmation_widget.setText("The record deletion was aborted")
-        confirmation_widget.exec()
-
-        self.close()
 
 
 class InsertDialog(QDialog):
@@ -266,13 +260,13 @@ class InsertDialog(QDialog):
 class SearchDialog(QDialog):
     def __init__(self):
         super().__init__()
+        # Set window title and size
         self.setWindowTitle("Search Student")
         self.setFixedWidth(300)
         self.setFixedHeight(300)
 
+        # Create layout and input widget
         layout = QVBoxLayout()
-
-        # Add search widget
         self.student_name = QLineEdit()
         self.student_name.setPlaceholderText("Name")
         layout.addWidget(self.student_name)
